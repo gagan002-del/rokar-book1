@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit & Debit Tracker</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 10px; }
+        .container { max-width: 960px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h1 { font-size: 24px; color: #2c3e50; margin: 0; }
+        h2 { font-size: 18px; color: #2c3e50; text-align: center; font-weight: 600; }
+        .card { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06); margin-bottom: 20px; }
+        
+        .header-buttons { display: flex; justify-content: flex-end; }
+        
+        /* --- Styles for Icon Dropdown Menu --- */
+        .dropdown { position: relative; display: inline-block; }
+        .menu-btn { background-color: #7f8c8d; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; line-height: 40px; text-align: center; cursor: pointer; transition: background-color 0.2s, transform 0.2s; }
+        .menu-btn:hover { background-color: #95a5a6; }
+        .menu-btn:active { transform: scale(0.95); }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 220px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
+        .dropdown-content a { color: #333; padding: 12px 16px; text-decoration: none; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 500; }
+        .dropdown-content a:hover { background-color: #f1f1f1; }
+        .dropdown.show .dropdown-content { display: block; }
+        
+        .transaction-form input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; margin-bottom: 12px; }
+        .type-selector { display: flex; justify-content: center; gap: 25px; font-size: 15px; margin-bottom: 15px; }
+        
+        .form-buttons { display: flex; gap: 10px; }
+        .form-buttons button { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-size: 15px; font-weight: bold; cursor: pointer; }
+        #submit-btn { background-color: #3498db; }
+        #cancel-edit-btn { background-color: #95a5a6; }
+
+        .summary-card { padding: 12px 20px; }
+        .balance-display { display: flex; justify-content: space-between; align-items: center; }
+        .balance-display .label { font-size: 17px; font-weight: 500; color: #34495e; }
+        .balance-display .value { font-size: 22px; font-weight: 600; color: #2c3e50; }
+
+        .history-list { list-style-type: none; padding: 0; }
+        .date-group { background-color: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 25px; padding: 15px; }
+        .date-group-header { text-align: center; font-size: 18px; font-weight: bold; color: #34495e; padding-bottom: 10px; margin: 0 0 15px 0; border-bottom: 2px solid #34495e; }
+        .ledger-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .ledger-column h3 { text-align: center; margin: 0 0 10px 0; font-size: 16px; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+        .ledger-entry { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; font-size: 15px; border-bottom: 1px solid #f9f9f9; cursor: pointer; }
+        
+        .entry-description { flex-grow: 1; padding-left: 10px; overflow-wrap: break-word; word-break: break-word; min-width: 0; }
+        .entry-amount { font-weight: 500; text-align: right; min-width: 90px; }
+        
+        .entry-actions { display: inline-flex; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.2s ease-in-out, visibility 0s linear 0.2s; }
+        .ledger-entry.show-actions .entry-actions { visibility: visible; opacity: 1; transition: opacity 0.2s ease-in-out; }
+        .edit-btn, .delete-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px 5px; }
+        .edit-btn { color: #3498db; } .delete-btn { color: #e74c3c; }
+
+        .column-footer { border-top: 2px solid #333; margin-top: 10px; padding-top: 8px; font-weight: bold; }
+        .footer-total { display: flex; justify-content: space-between; }
+        .opening-balance, .closing-balance { font-style: italic; color: #3498db; }
+        .empty-history-message { text-align: center; color: #95a5a6; padding: 25px; background-color: #fff; border-radius: 10px; }
+
+        @media (max-width: 768px) {
+            .ledger-columns { grid-template-columns: 1fr; gap: 0; }
+            .ledger-column { margin-bottom: 25px; }
+            .ledger-column:last-child { margin-bottom: 0; }
+            h1 { font-size: 20px; }
+        }
+
+        /* --- Styles for Professional PDF Output --- */
+        .pdf-container { font-family: Arial, sans-serif; color: #333; margin: 0; }
+        .pdf-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .pdf-header h1 { font-size: 24px; margin: 0; color: #000; }
+        .pdf-header p { font-size: 12px; margin: 2px 0; color: #555; }
+        .pdf-summary { margin-bottom: 25px; border: 1px solid #ccc; border-radius: 5px; padding: 15px; background-color: #f9f9f9; }
+        .pdf-summary h2 { font-size: 16px; margin-top: 0; margin-bottom: 10px; text-align: left; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
+        .summary-grid span:nth-child(odd) { font-weight: bold; }
+        .summary-grid span:nth-child(even) { text-align: right; }
+        .summary-final-balance { font-size: 16px !important; font-weight: bold; color: #000; }
+        .pdf-table-container h2 { font-size: 16px; margin-bottom: 10px; text-align: left; }
+        .transaction-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .transaction-table th, .transaction-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .transaction-table th { background-color: #e9ecef; font-weight: bold; }
+        .transaction-table .col-amount { text-align: right; }
+        .pdf-date-separator td { background-color: #dbe4f0 !important; font-weight: bold; text-align: center !important; padding: 6px; border-top: 2px solid #333 !important; border-bottom: 1px solid #aaa !important; }
+        .pdf-daily-summary td { background-color: #f1f3f5 !important; font-weight: bold; border-top: 1px solid #999 !important; border-bottom: 2px solid #333 !important; }
+        .pdf-footer { text-align: center; margin-top: 30px; font-size: 10px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- START: Unified Icon Menu Header -->
+        <div class="header">
+            <h1>Ledger Book (रोकड़ बही)</h1>
+            <div class="header-buttons">
+                <div class="dropdown">
+                    <button id="menu-btn" class="menu-btn" title="Menu">⋮</button>
+                    <div id="main-menu" class="dropdown-content">
+                        <a href="#" id="import-btn">📥 Import Data</a>
+                        <a href="#" id="export-btn">📄 Export Data (.json)</a>
+                        <a href="#" id="download-csv-btn">📈 Download CSV</a>
+                        <a href="#" id="download-pdf-btn">📋 Download PDF</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Hidden input for file selection -->
+        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+        <!-- END: Unified Icon Menu Header -->
+
+        <div class="card">
+            <form id="transaction-form" class="transaction-form">
+                <h2 id="form-title">Add New Entry</h2>
+                <input type="hidden" id="editing-id">
+                <input type="text" id="description" placeholder="Description (विवरण)" required>
+                <input type="number" id="amount" placeholder="Amount (रकम)" required>
+                <input type="date" id="date" required>
+                <div class="type-selector">
+                    <label><input type="radio" name="type" value="credit" checked> Credit (जमा)</label>
+                    <label><input type="radio" name="type" value="debit"> Debit (नाम)</label>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" id="submit-btn">Add Entry</button>
+                    <button type="button" id="cancel-edit-btn" style="display: none;">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card summary-card">
+            <div class="balance-display">
+                <span class="label">Current Balance (शेष)</span>
+                <span id="summary-balance" class="value">₹0.00</span>
+            </div>
+        </div>
+        <ul id="history-list" class="history-list"></ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const transactionForm = document.getElementById('transaction-form');
+            const descriptionInput = document.getElementById('description');
+            const amountInput = document.getElementById('amount');
+            const dateInput = document.getElementById('date');
+            const historyListEl = document.getElementById('history-list');
+            const editingIdInput = document.getElementById('editing-id');
+            const submitBtn = document.getElementById('submit-btn');
+            const formTitle = document.getElementById('form-title');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            const summaryBalanceEl = document.getElementById('summary-balance');
+            const menuBtn = document.getElementById('menu-btn');
+            const importBtn = document.getElementById('import-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const downloadCsvBtn = document.getElementById('download-csv-btn');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            const importFileInput = document.getElementById('import-file-input');
+
+            // --- State ---
+            let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+            // --- Core UI Functions ---
+            function saveTransactions() { localStorage.setItem('transactions', JSON.stringify(transactions)); }
+            function resetFormState() { transactionForm.reset(); editingIdInput.value = ''; formTitle.textContent = 'Add New Entry'; submitBtn.textContent = 'Add Entry'; dateInput.valueAsDate = new Date(); cancelEditBtn.style.display = 'none'; }
+            window.deleteTransaction = function(id) { if (confirm('Delete this entry?')) { transactions = transactions.filter(t => t.id !== id); saveTransactions(); updateUI(); } }
+            window.editTransaction = function(id) { const transaction = transactions.find(t => t.id === id); if (!transaction) return; descriptionInput.value = transaction.description; amountInput.value = transaction.amount; dateInput.value = transaction.date; document.querySelector(`input[name="type"][value="${transaction.type}"]`).checked = true; editingIdInput.value = id; formTitle.textContent = 'Edit Entry'; submitBtn.textContent = 'Update Entry'; cancelEditBtn.style.display = 'block'; transactionForm.scrollIntoView({ behavior: 'smooth' }); };
+            function updateSummary() { const totalCredit = transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0); const totalDebit = transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0); const balance = totalCredit - totalDebit; summaryBalanceEl.textContent = `₹${balance.toFixed(2)}`; }
+            function renderTransactions() {
+                historyListEl.innerHTML = '';
+                if (transactions.length === 0) { historyListEl.innerHTML = '<p class="empty-history-message">No entries yet. Add one or import a data file.</p>'; return; }
+                const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const groupedByDate = sortedTx.reduce((acc, tx) => { (acc[tx.date] = acc[tx.date] || []).push(tx); return acc; }, {});
+                const displayDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+                let runningBalance = 0;
+                const dailyData = {};
+                Object.keys(groupedByDate).sort((a, b) => new Date(a) - new Date(b)).forEach(date => {
+                    const openingBalance = runningBalance;
+                    const dailyCredits = groupedByDate[date].filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+                    const dailyDebits = groupedByDate[date].filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+                    const closingBalance = openingBalance + dailyCredits - dailyDebits;
+                    runningBalance = closingBalance;
+                    dailyData[date] = { openingBalance, closingBalance, dailyCredits, dailyDebits };
+                });
+                displayDates.forEach(date => {
+                    const { openingBalance, closingBalance, dailyCredits, dailyDebits } = dailyData[date];
+                    const creditsForDay = groupedByDate[date].filter(t => t.type === 'credit');
+                    const debitsForDay = groupedByDate[date].filter(t => t.type === 'debit');
+                    let creditHTML = `<div class="ledger-entry opening-balance"><span class="entry-amount">₹${openingBalance.toFixed(2)}</span><span class="entry-description">Opening Balance (रोकड़ बाकी)</span></div>`;
+                    creditsForDay.forEach(tx => { creditHTML += `<div class="ledger-entry"><span class="entry-amount">₹${tx.amount.toFixed(2)}</span><span class="entry-description">${tx.description}</span><span class="entry-actions"><button class="edit-btn" onclick="editTransaction(${tx.id})" title="Edit">✎</button><button class="delete-btn" onclick="deleteTransaction(${tx.id})" title="Delete">×</button></span></div>`; });
+                    let debitHTML = '';
+                    debitsForDay.forEach(tx => { debitHTML += `<div class="ledger-entry"><span class="entry-amount">₹${tx.amount.toFixed(2)}</span><span class="entry-description">${tx.description}</span><span class="entry-actions"><button class="edit-btn" onclick="editTransaction(${tx.id})" title="Edit">✎</button><button class="delete-btn" onclick="deleteTransaction(${tx.id})" title="Delete">×</button></span></div>`; });
+                    const totalCreditSide = openingBalance + dailyCredits;
+                    historyListEl.innerHTML += `<li class="date-group"><h2 class="date-group-header">${new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h2><div class="ledger-columns"><div class="ledger-column credit-column"><h3>Credit (जमा)</h3><div class="transaction-list-content">${creditHTML}</div><div class="column-footer"><div class="footer-total"><span>Total</span><span>₹${totalCreditSide.toFixed(2)}</span></div></div></div><div class="ledger-column debit-column"><h3>Debit (नाम)</h3><div class="transaction-list-content">${debitHTML}</div><div class="column-footer"><div class="footer-total"><span>Total</span><span>₹${dailyDebits.toFixed(2)}</span></div><div class="footer-total closing-balance"><span>Closing Balance</span><span>₹${closingBalance.toFixed(2)}</span></div></div></div></div></li>`;
+                });
+            }
+            function updateUI() { renderTransactions(); updateSummary(); }
+            
+            // --- Dropdown Menu Logic ---
+            function closeMainMenu() { menuBtn.parentElement.classList.remove('show'); }
+            menuBtn.addEventListener('click', (event) => { event.stopPropagation(); menuBtn.parentElement.classList.toggle('show'); });
+            window.addEventListener('click', closeMainMenu);
+
+            // --- Data I/O Functions (PDF, CSV, JSON) ---
+            function generateCsv() {
+                if (transactions.length === 0) { alert('No transaction history to download.'); return; }
+                const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const totalCredit = transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0);
+                const totalDebit = transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0);
+                const finalBalance = totalCredit - totalDebit;
+                const firstDate = new Date(sortedTx[0].date + 'T00:00:00').toLocaleDateString('en-GB');
+                const lastDate = new Date(sortedTx[sortedTx.length - 1].date + 'T00:00:00').toLocaleDateString('en-GB');
+                const groupedByDate = sortedTx.reduce((acc, tx) => { (acc[tx.date] = acc[tx.date] || []).push(tx); return acc; }, {});
+                const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(a) - new Date(b));
+                const escapeCsvField = (field) => { const stringField = String(field); if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) { return `"${stringField.replace(/"/g, '""')}"`; } return stringField; };
+                let csvContent = 'Account Statement\r\nLedger Book\r\n\r\n';
+                csvContent += `Statement Period:,${firstDate} to ${lastDate}\r\nGenerated On:,${new Date().toLocaleString('en-GB')}\r\nTotal Credit:,${totalCredit.toFixed(2)}\r\nTotal Debit:,${totalDebit.toFixed(2)}\r\nFinal Balance:,${finalBalance.toFixed(2)}\r\n\r\nTransaction Details\r\n`;
+                csvContent += ['Description', 'Credit', 'Debit', 'Balance'].join(',') + '\r\n';
+                let runningBalance = 0;
+                sortedDates.forEach(date => {
+                    const openingBalanceForDay = runningBalance;
+                    const dailyTransactions = groupedByDate[date];
+                    let dailyCredit = 0, dailyDebit = 0;
+                    const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    csvContent += `"${formattedDate}",,,\r\n`;
+                    csvContent += ['Opening Balance', openingBalanceForDay.toFixed(2), '', openingBalanceForDay.toFixed(2)].join(',') + '\r\n';
+                    dailyTransactions.forEach(tx => {
+                        const creditAmount = tx.type === 'credit' ? tx.amount.toFixed(2) : '';
+                        const debitAmount = tx.type === 'debit' ? tx.amount.toFixed(2) : '';
+                        runningBalance += (tx.type === 'credit' ? tx.amount : -tx.amount);
+                        if (tx.type === 'credit') dailyCredit += tx.amount;
+                        if (tx.type === 'debit') dailyDebit += tx.amount;
+                        csvContent += [escapeCsvField(tx.description), creditAmount, debitAmount, runningBalance.toFixed(2)].join(',') + '\r\n';
+                    });
+                    const totalCreditSide = openingBalanceForDay + dailyCredit;
+                    csvContent += ['Daily Totals', totalCreditSide.toFixed(2), dailyDebit.toFixed(2), runningBalance.toFixed(2)].join(',') + '\r\n\r\n';
+                });
+                csvContent += '"This is a computer-generated statement and does not require a signature."\r\n';
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `Ledger_Statement_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+
+            function generatePdf() {
+                if (transactions.length === 0) { alert('No transaction history to download.'); return; }
+                const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const totalCredit = transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0);
+                const totalDebit = transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0);
+                const finalBalance = totalCredit - totalDebit;
+                const firstDate = new Date(sortedTx[0].date + 'T00:00:00').toLocaleDateString('en-GB');
+                const lastDate = new Date(sortedTx[sortedTx.length - 1].date + 'T00:00:00').toLocaleDateString('en-GB');
+                const groupedByDate = sortedTx.reduce((acc, tx) => { (acc[tx.date] = acc[tx.date] || []).push(tx); return acc; }, {});
+                const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(a) - new Date(b));
+                let tableBodyHtml = '';
+                let runningBalance = 0;
+                sortedDates.forEach(date => {
+                    const openingBalanceForDay = runningBalance;
+                    const dailyTransactions = groupedByDate[date];
+                    let dailyCredit = 0, dailyDebit = 0;
+                    const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    tableBodyHtml += `<tr class="pdf-date-separator"><td colspan="4">${formattedDate}</td></tr>`;
+                    tableBodyHtml += `<tr style="font-style: italic; color: #555;"><td>Opening Balance</td><td class="col-amount">₹${openingBalanceForDay.toFixed(2)}</td><td></td><td class="col-amount">₹${openingBalanceForDay.toFixed(2)}</td></tr>`;
+                    dailyTransactions.forEach(tx => {
+                        const creditAmount = tx.type === 'credit' ? `₹${tx.amount.toFixed(2)}` : '-';
+                        const debitAmount = tx.type === 'debit' ? `₹${tx.amount.toFixed(2)}` : '-';
+                        runningBalance += (tx.type === 'credit' ? tx.amount : -tx.amount);
+                        if (tx.type === 'credit') dailyCredit += tx.amount;
+                        if (tx.type === 'debit') dailyDebit += tx.amount;
+                        const safeDescription = tx.description.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        tableBodyHtml += `<tr><td>${safeDescription}</td><td class="col-amount">${creditAmount}</td><td class="col-amount">${debitAmount}</td><td class="col-amount">₹${runningBalance.toFixed(2)}</td></tr>`;
+                    });
+                    const totalCreditSide = openingBalanceForDay + dailyCredit;
+                    tableBodyHtml += `<tr class="pdf-daily-summary"><td><strong>Daily Totals</strong></td><td class="col-amount"><strong>₹${totalCreditSide.toFixed(2)}</strong></td><td class="col-amount"><strong>₹${dailyDebit.toFixed(2)}</strong></td><td class="col-amount"><strong>₹${runningBalance.toFixed(2)}</strong></td></tr>`;
+                });
+                const pdfHtml = `<div class="pdf-container"><div class="pdf-header"><h1>Account Statement</h1><p>Ledger Book</p></div><div class="pdf-summary"><h2>Statement Summary</h2><div class="summary-grid"><span>Statement Period:</span> <span>${firstDate} to ${lastDate}</span><span>Generated On:</span> <span>${new Date().toLocaleString('en-GB')}</span><span>Total Credit:</span> <span style="color: green;">₹${totalCredit.toFixed(2)}</span><span>Total Debit:</span> <span style="color: red;">₹${totalDebit.toFixed(2)}</span><span class="summary-final-balance">Final Balance:</span> <span class="summary-final-balance">₹${finalBalance.toFixed(2)}</span></div></div><div class="pdf-table-container"><h2>Transaction Details</h2><table class="transaction-table"><thead><tr><th style="width:45%">Description</th><th class="col-amount">Credit</th><th class="col-amount">Debit</th><th class="col-amount">Balance</th></tr></thead><tbody>${tableBodyHtml}</tbody></table></div><div class="pdf-footer">This is a computer-generated statement.</div></div>`;
+                const pdfContentElement = document.createElement('div');
+                pdfContentElement.innerHTML = pdfHtml;
+                const options = { margin: [0.25, 0.25, 0.25, 0.25], filename: `Ledger_Statement_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+                html2pdf().from(pdfContentElement).set(options).save();
+            }
+
+            // --- Event Listeners ---
+            importBtn.addEventListener('click', (e) => { e.preventDefault(); importFileInput.click(); closeMainMenu(); });
+            exportBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeMainMenu();
+                if (transactions.length === 0) { alert('There is no data to export.'); return; }
+                const dataStr = JSON.stringify(transactions, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `ledger-data-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+            importFileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) { return; }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (!Array.isArray(importedData)) { throw new Error("Invalid file format: must be a JSON array."); }
+                        if (transactions.length > 0 && !confirm('This will overwrite your current data. Are you sure?')) { importFileInput.value = ''; return; }
+                        transactions = importedData;
+                        saveTransactions();
+                        updateUI();
+                        alert('Data imported successfully!');
+                    } catch (error) {
+                        alert('Failed to import data.\nError: ' + error.message);
+                    } finally {
+                        importFileInput.value = '';
+                    }
+                };
+                reader.readAsText(file);
+            });
+            downloadCsvBtn.addEventListener('click', (e) => { e.preventDefault(); generateCsv(); closeMainMenu(); });
+            downloadPdfBtn.addEventListener('click', (e) => { e.preventDefault(); generatePdf(); closeMainMenu(); });
+            cancelEditBtn.addEventListener('click', resetFormState);
+            historyListEl.addEventListener('click', e => {
+                const clickedEntry = e.target.closest('.ledger-entry');
+                if (e.target.closest('.entry-actions')) { return; }
+                if (clickedEntry && !clickedEntry.classList.contains('opening-balance')) {
+                    const isAlreadyActive = clickedEntry.classList.contains('show-actions');
+                    document.querySelectorAll('.ledger-entry.show-actions').forEach(entry => entry.classList.remove('show-actions'));
+                    if (!isAlreadyActive) clickedEntry.classList.add('show-actions');
+                } else {
+                    document.querySelectorAll('.ledger-entry.show-actions').forEach(entry => entry.classList.remove('show-actions'));
+                }
+            });
+            transactionForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const description = descriptionInput.value, amount = parseFloat(amountInput.value), date = dateInput.value, type = document.querySelector('input[name="type"]:checked').value, editingId = editingIdInput.value;
+                if (!description.trim() || isNaN(amount) || amount <= 0 || !date) { alert('Please fill in all fields correctly.'); return; }
+                if (editingId) {
+                    const transactionIndex = transactions.findIndex(t => t.id == editingId);
+                    if (transactionIndex > -1) transactions[transactionIndex] = { id: parseInt(editingId), description, amount, date, type };
+                } else {
+                    transactions.push({ id: Date.now(), description, amount, date, type });
+                }
+                saveTransactions(); updateUI(); resetFormState();
+            });
+            
+            // --- Initial Load ---
+            dateInput.valueAsDate = new Date();
+            updateUI();
+        });
+    </script>
+</body>
+</html>
