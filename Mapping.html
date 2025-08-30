@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Site Map Editor</title>
+    <!-- Include the Fabric.js library from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    
+    <style>
+        /* --- Basic Page Styling --- */
+        :root {
+            --primary-color: #1a73e8;
+            --secondary-color: #2a9d8f;
+            --danger-color: #d93025;
+            --light-gray: #f0f2f5;
+            --medium-gray: #ddd;
+            --dark-gray: #333;
+            --border-color: #ccc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            margin: 0;
+            padding: 0;
+            color: var(--dark-gray);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: #ffffff;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--medium-gray);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        /* --- Main Layout --- */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .canvas-wrapper {
+            flex-grow: 1;
+            padding: 20px;
+            background-color: #e9ebee;
+            overflow: auto; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        #site-map-canvas {
+            border: 2px dashed var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* --- Toolbar Styling --- */
+        .toolbar {
+            background-color: #fff;
+            padding: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar button, .toolbar label, .toolbar input[type="number"] {
+            padding: 8px 15px;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+
+        .toolbar input[type="number"] {
+            width: 60px; /* Specific width for gap input */
+            cursor: text;
+        }
+
+        .toolbar button:hover, .toolbar label:hover {
+            background-color: #f5f5f5;
+            border-color: #aaa;
+        }
+        
+        .toolbar button.primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .toolbar button.primary:hover {
+             background-color: #185abc;
+        }
+
+        .toolbar button.secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+        
+        .toolbar button.secondary:hover {
+             background-color: #248a7f;
+        }
+
+        .toolbar button.danger {
+            background-color: var(--danger-color);
+            color: white;
+            border-color: var(--danger-color);
+        }
+        
+        .toolbar button.danger:hover {
+             background-color: #a52714;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 0 15px;
+            border-right: 1px solid var(--medium-gray);
+        }
+        
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        /* --- Properties Panel Styling --- */
+        #properties-panel {
+            width: 280px;
+            flex-shrink: 0;
+            background-color: #ffffff;
+            border-left: 1px solid var(--medium-gray);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            display: none; /* Hidden by default */
+        }
+        
+        #properties-panel h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .prop-group {
+            margin-bottom: 15px;
+        }
+
+        .prop-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .prop-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        /* --- Mobile Responsive Styling --- */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            #properties-panel {
+                width: 100%;
+                height: 250px; /* Fixed height for mobile panel */
+                border-left: none;
+                border-top: 1px solid var(--medium-gray);
+                box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+            }
+
+            .toolbar-group {
+                border-right: none;
+                padding: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>AI-Powered Site Map Editor</h1>
+    </header>
+
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <button id="addPlotBtn" class="primary">Add Plot</button>
+            <button id="addRoadBtn">Add Road</button>
+            <button id="addTextBtn">Add Text Label</button>
+        </div>
+        <div class="toolbar-group">
+             <button id="duplicateBtn" class="secondary">Duplicate</button>
+             <button id="deleteBtn" class="danger">Delete</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="arrangeSelectedHorizontalBtn">Arrange Selected Horizontal</button>
+            <button id="arrangeSelectedVerticalBtn">Arrange Selected Vertical</button>
+            <label for="arrangeGapInput">Gap:</label>
+            <input type="number" id="arrangeGapInput" value="10" min="0">
+        </div>
+        <div class="toolbar-group">
+            <button id="saveBtn">Save Map</button>
+            <label for="loadInput">Load Map</label>
+            <input type="file" id="loadInput" accept=".json" style="display: none;">
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="canvas-wrapper">
+            <canvas id="site-map-canvas" width="1200" height="900"></canvas>
+        </div>
+        
+        <div id="properties-panel">
+            <h3>Edit Properties</h3>
+            
+            <div id="text-props" class="prop-group">
+                <label for="textInput">Text Content:</label>
+                <input type="text" id="textInput">
+            </div>
+
+            <div id="plot-props">
+                 <div class="prop-group">
+                    <label for="plotNumInput">Plot Number:</label>
+                    <input type="text" id="plotNumInput">
+                </div>
+                 <div class="prop-group">
+                    <label for="plotAreaInput">Area (e.g., Gaj):</label>
+                    <input type="text" id="plotAreaInput">
+                </div>
+                 <div class="prop-group">
+                    <label for="plotPriceInput">Price (e.g., Rs.):</label>
+                    <input type="text" id="plotPriceInput">
+                </div>
+            </div>
+
+            <div class="prop-group">
+                <label for="widthInput">Width:</label>
+                <input type="number" id="widthInput">
+            </div>
+
+            <div class="prop-group">
+                <label for="heightInput">Height:</label>
+                <input type="number" id="heightInput">
+            </div>
+            
+            <div class="prop-group">
+                <label for="colorInput">Color:</label>
+                <input type="color" id="colorInput" style="height: 35px;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Initialize Fabric.js Canvas ---
+        const canvas = new fabric.Canvas('site-map-canvas', {
+            backgroundColor: '#ffffff'
+        });
+        
+        // --- Color Palette for Duplication ---
+        const colorPalette = [
+            '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6',
+            '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3',
+            '#808000', '#ffd8b1', '#000075', '#a9a9a9'
+        ];
+        let colorIndex = 0;
+
+        // --- DOM Element References ---
+        const propertiesPanel = document.getElementById('properties-panel');
+        const textProps = document.getElementById('text-props');
+        const plotProps = document.getElementById('plot-props');
+
+        const textInput = document.getElementById('textInput');
+        const plotNumInput = document.getElementById('plotNumInput');
+        const plotAreaInput = document.getElementById('plotAreaInput');
+        const plotPriceInput = document.getElementById('plotPriceInput');
+        
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const colorInput = document.getElementById('colorInput');
+
+        // --- Toolbar Button Event Listeners ---
+        document.getElementById('addPlotBtn').addEventListener('click', () => {
+            const plotNumberText = new fabric.IText('Plot (1)', { fontSize: 20, fill: '#000', originX: 'center', originY: 'center', top: -30 });
+            const areaText = new fabric.IText('1210 Gaj', { fontSize: 18, fill: '#000', originX: 'center', originY: 'center', top: 0 });
+            const priceText = new fabric.IText('Rs. 6000', { fontSize: 18, fill: '#000', originX: 'center', originY: 'center', top: 30 });
+            
+            const rect = new fabric.Rect({
+                width: 150,
+                height: 150,
+                fill: '#a8d8ea',
+                stroke: 'black',      // Black border
+                strokeWidth: 2,       // Bold border
+                originX: 'center',
+                originY: 'center'
+            });
+
+            const plotGroup = new fabric.Group([rect, plotNumberText, areaText, priceText], {
+                left: 100,
+                top: 100,
+                isPlot: true 
+            });
+
+            canvas.add(plotGroup);
+            canvas.setActiveObject(plotGroup);
+        });
+
+        document.getElementById('addRoadBtn').addEventListener('click', () => {
+            const road = new fabric.Rect({
+                left: 100,
+                top: 200,
+                width: 50,
+                height: 400,
+                fill: '#444444',
+                isRoad: true
+            });
+            canvas.add(road);
+            canvas.setActiveObject(road);
+        });
+
+        document.getElementById('addTextBtn').addEventListener('click', () => {
+            const text = new fabric.IText('Editable Text', {
+                left: 100,
+                top: 100,
+                fontSize: 24,
+                fill: '#333333'
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+        });
+        
+        document.getElementById('duplicateBtn').addEventListener('click', () => {
+            const activeObject = canvas.getActiveObject();
+            if (!activeObject) {
+                alert("Please select an object to duplicate.");
+                return;
+            }
+
+            activeObject.clone(cloned => {
+                const offset = 20;
+                cloned.set({
+                    left: cloned.left + offset,
+                    top: cloned.top + offset,
+                });
+                
+                const newColor = colorPalette[colorIndex];
+                colorIndex = (colorIndex + 1) % colorPalette.length;
+
+                if (cloned.isPlot) {
+                    cloned._objects[0].set('fill', newColor);
+                } else {
+                    cloned.set('fill', newColor);
+                }
+
+                canvas.add(cloned);
+                canvas.setActiveObject(cloned);
+                canvas.renderAll();
+            });
+        });
+
+        document.getElementById('deleteBtn').addEventListener('click', () => {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                activeObjects.forEach(obj => canvas.remove(obj));
+                canvas.discardActiveObject();
+                canvas.renderAll();
+            }
+        });
+
+        // --- NEW: ARRANGE SELECTED FUNCTIONALITY ---
+        document.getElementById('arrangeSelectedHorizontalBtn').addEventListener('click', () => {
+            arrangeSelected(true); // true for horizontal
+        });
+
+        document.getElementById('arrangeSelectedVerticalBtn').addEventListener('click', () => {
+            arrangeSelected(false); // false for vertical
+        });
+
+        function arrangeSelected(isHorizontal) {
+            const activeSelection = canvas.getActiveObject();
+            if (!activeSelection || activeSelection.type !== 'activeSelection') {
+                alert("Please select multiple objects to arrange.");
+                return;
+            }
+            
+            const gap = parseFloat(document.getElementById('arrangeGapInput').value) || 0;
+            const objects = activeSelection.getObjects();
+
+            if (isHorizontal) {
+                // Sort by horizontal position to maintain order
+                objects.sort((a, b) => a.left - b.left);
+                
+                let currentX = objects[0].left;
+                const topPosition = objects[0].top;
+
+                objects.forEach(obj => {
+                    obj.set({
+                        top: topPosition,
+                        left: currentX
+                    });
+                    currentX += obj.getScaledWidth() + gap;
+                });
+            } else { // Vertical arrangement
+                // Sort by vertical position to maintain order
+                objects.sort((a, b) => a.top - b.top);
+                
+                const leftPosition = objects[0].left;
+                let currentY = objects[0].top;
+
+                objects.forEach(obj => {
+                    obj.set({
+                        left: leftPosition,
+                        top: currentY
+                    });
+                    currentY += obj.getScaledHeight() + gap;
+                });
+            }
+            
+            activeSelection.setCoords(); // Recalculate the selection box
+            canvas.renderAll();
+        }
+
+        // --- Save and Load Functionality ---
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const json = canvas.toJSON(['isPlot', 'isRoad']);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(json));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "sitemap.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+        
+        const loadInput = document.getElementById('loadInput');
+        // Make the label trigger the hidden file input
+        document.querySelector('label[for="loadInput"]').addEventListener('click', () => {
+             loadInput.click();
+        });
+
+        loadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (f) => {
+                canvas.loadFromJSON(f.target.result, canvas.renderAll.bind(canvas));
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset for re-uploading the same file
+        });
+
+        // --- Properties Panel Logic ---
+        function updatePropertiesPanel() {
+            const activeObject = canvas.getActiveObject();
+            // Do not show panel if multiple objects are selected
+            if (!activeObject || activeObject.type === 'activeSelection') {
+                propertiesPanel.style.display = 'none';
+                return;
+            }
+            propertiesPanel.style.display = 'block';
+
+            // Hide all by default
+            textProps.style.display = 'none';
+            plotProps.style.display = 'none';
+            
+            let targetObject = activeObject;
+            if (activeObject.isPlot) {
+                plotProps.style.display = 'block';
+                const [rect, plotNumText, plotAreaText, plotPriceText] = activeObject._objects;
+                targetObject = rect; // The rect holds dimensions and color
+                plotNumInput.value = plotNumText.text;
+                plotAreaInput.value = plotAreaText.text;
+                plotPriceInput.value = plotPriceText.text;
+                colorInput.value = rect.fill;
+            } else if (activeObject.type === 'i-text') {
+                textProps.style.display = 'block';
+                textInput.value = activeObject.text;
+                 colorInput.value = activeObject.fill;
+            } else if (activeObject.isRoad || activeObject.type === 'rect') {
+                 colorInput.value = activeObject.fill;
+            }
+            
+            // Common properties
+            widthInput.value = activeObject.getScaledWidth().toFixed(0);
+            heightInput.value = active.getScaledHeight().toFixed(0);
+
+            // Handle color for non-plot objects like text and roads
+            if (!activeObject.isPlot) {
+                 colorInput.value = fabric.Color.fromHex(activeObject.fill).toHex();
+            }
+        }
+
+        function updateObjectProperties() {
+            const activeObject = canvas.getActiveObject();
+            if (!activeObject) return;
+            
+            const newWidth = parseFloat(widthInput.value);
+            const newHeight = parseFloat(heightInput.value);
+            const newColor = colorInput.value;
+
+            if (activeObject.isPlot) {
+                const [rect] = activeObject._objects;
+                // Scale the entire group to match new dimensions
+                activeObject.scaleX = newWidth / rect.width;
+                activeObject.scaleY = newHeight / rect.height;
+                
+                rect.set({ fill: newColor });
+                
+                // Update text fields
+                activeObject._objects[1].set('text', plotNumInput.value);
+                activeObject._objects[2].set('text', plotAreaInput.value);
+                activeObject._objects[3].set('text', plotPriceInput.value);
+
+            } else if (activeObject.type === 'i-text') {
+                activeObject.set({ text: textInput.value, fill: newColor });
+                activeObject.scaleToWidth(newWidth); // I-Text scales proportionally
+            } else { // For roads or other simple rects
+                 activeObject.set({ fill: newColor, width: newWidth, height: newHeight });
+            }
+
+            activeObject.setCoords();
+            canvas.requestRenderAll();
+        }
+        
+        ['input', 'change'].forEach(eventType => {
+            [textInput, plotNumInput, plotAreaInput, plotPriceInput, widthInput, heightInput, colorInput].forEach(input => {
+                input.addEventListener(eventType, updateObjectProperties);
+            });
+        });
+
+        // --- Canvas Event Listeners ---
+        canvas.on({
+            'selection:created': updatePropertiesPanel,
+            'selection:updated': updatePropertiesPanel,
+            'selection:cleared': () => propertiesPanel.style.display = 'none',
+        });
+        
+        // Use a slight delay on modified to ensure properties are updated correctly
+        canvas.on('object:modified', () => setTimeout(updatePropertiesPanel, 10));
+
+    </script>
+
+</body>
+</html>
